@@ -293,6 +293,19 @@ ARGS is a plist that affects how the process is run.
             (pop-to-buffer buf)
           (display-buffer buf))))))
 
+;;;###autoload
+(defvar justl-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "j") #'justl-exec-recipe-in-dir)
+    (define-key map (kbd "e") #'justl-exec-default-recipe)
+    (define-key map (kbd "l") #'justl)
+    (define-key map (kbd "o") #'justl-pop-to-output-buffer)
+    (define-key map (kbd "r") #'justl-recompile-and-pop)
+    map)
+  "Keymap for global justl commands.
+Bind this map to a prefix key of your choice, e.g.:
+  (global-set-key (kbd \"C-c j\") justl-map)")
+
 (defvar justl-compile-mode-map
   (let ((map (make-sparse-keymap)))
     (suppress-keymap map t)
@@ -548,6 +561,23 @@ They are returned as objects, as per the JSON output of \"just --dump\"."
   "Execute default recipe."
   (interactive)
   (justl--exec-without-justfile justl-executable nil (justl--recipe-output-buffer "default")))
+
+;;;###autoload
+(defun justl-pop-to-output-buffer ()
+  "Pop to the justl output process buffer."
+  (interactive)
+  (if-let ((buf (get-buffer justl--output-process-buffer)))
+      (pop-to-buffer buf)
+    (user-error "No justl output buffer exists yet")))
+
+;;;###autoload
+(defun justl-recompile-and-pop ()
+  "Pop to the justl output process buffer and recompile."
+  (interactive)
+  (if-let ((buf (get-buffer justl--output-process-buffer)))
+      (progn (pop-to-buffer buf)
+             (justl-recompile))
+    (user-error "No justl output buffer exists yet")))
 
 (defvar justl-mode-map
   (let ((map (make-sparse-keymap)))
