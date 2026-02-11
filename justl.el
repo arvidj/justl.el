@@ -448,19 +448,24 @@ Logs the command run."
   ;; Parameters for the recipe
   parameters
   ;; Is the recipe private
-  private)
+  private
+  ;; Body of the recipe
+  body
+  )
 
 (defun justl--get-recipes (justfile)
   "Return all the recipes from JUSTFILE.
 They are returned as objects, as per the JSON output of \"just --dump\"."
   (let-alist (justl--parse justfile)
     (let ((all-recipes (mapcar (lambda (x) (make-recipe :name (alist-get 'name x)
-				     :doc (alist-get 'doc x)
-				     :parameters (alist-get 'parameters x)
-				     :private (alist-get 'private x))) .recipes)))
+				                                        :doc (alist-get 'doc x)
+				                                        :parameters (alist-get 'parameters x)
+				                                        :private (alist-get 'private x)
+				                                        :body (alist-get 'body x)
+                                                        )) .recipes)))
       (if justl-include-private-recipes
-	  all-recipes
-	(seq-filter (lambda (recipe) (not (justl--recipe-private-p recipe))) all-recipes)))))
+	      all-recipes
+	    (seq-filter (lambda (recipe) (not (justl--recipe-private-p recipe))) all-recipes)))))
 
 ;;; todo: For easily integrating it, we need something like this
 ;;; integrated upstream:
@@ -487,6 +492,10 @@ They are returned as objects, as per the JSON output of \"just --dump\"."
   "Return non-nil if RECIPE is private."
   (recipe-private recipe))
 
+(defun justl--recipe-body (recipe)
+  "Get the body of argument ARG."
+  (recipe-body recipe))
+
 (defun justl--arg-name (arg)
   "Get the name of argument ARG."
   (let-alist arg .name))
@@ -509,14 +518,18 @@ They are returned as objects, as per the JSON output of \"just --dump\"."
 
 (defun justl-completion-annotation (candidate)
   "Annotation function for `justl-exec-recipe-in-dir'."
-  (let* ((recipes justl--recipes)
+  (let* ((recipes (buffer-local-value 'justl--recipes (window-buffer (minibuffer-selected-window))))
          (doc (cl-some
                (lambda (recipe)
                  (when (string= (justl--recipe-name recipe) candidate)
-                   (justl--recipe-desc recipe)))
-               recipes)))
+                   (or (justl--recipe-desc recipe)
+                       (string-join (mapcar #'car (justl--recipe-body recipe)) "; "))))
+               recipes))
+         (pad (apply #'max (mapcar #'length (mapcar #'justl--recipe-name recipes)))))
     (when doc
-      (concat  (propertize (concat " -- " doc) 'face 'font-lock-comment-face)))))
+      (concat
+       (propertize
+        (concat (make-string (- pad (length candidate)) ?\s) " -- " doc) 'face 'font-lock-comment-face)))))
 
 ;;;###autoload
 (defun justl-exec-recipe-in-dir ()
@@ -824,8 +837,8 @@ is not executed."
 They are returned as objects, as per the JSON output of \"just --dump\"."
   (let-alist (justl--parse justfile)
     (mapcar (lambda (x) (make-just-module :name (symbol-name (car x))
-					  :doc (alist-get 'doc (cdr x))
-					  :source (alist-get 'source (cdr x)))) .modules)))
+					                      :doc (alist-get 'doc (cdr x))
+					                      :source (alist-get 'source (cdr x)))) .modules)))
 
 ;;;###autoload
 (defun justl ()
